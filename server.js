@@ -1,6 +1,7 @@
-const net = require('net');
-const uuid = require('uuid');
-const config = require('./config');
+const net     = require('net');
+const sqlite3 = require('sqlite3');
+const uuid    = require('uuid');
+const config  = require('./config');
 
 const server = net.createServer();
 server.maxConnections = config.MAX_CONNECTIONS;
@@ -15,6 +16,9 @@ function logConnectionCount() {
 /*** EVENTS ***/
 
 server.on('connection', (socket) => {
+
+    const db = new sqlite3.Database(config.DATABASE_FILE);
+    socket.db = db;
     socket.id = uuid.v4();
 
     console.log(`Connection created from ${socket.remoteAddress}. Connection identifier: ${socket.id}`);
@@ -26,15 +30,29 @@ server.on('connection', (socket) => {
     //Close idle connections
     socket.setTimeout(config.CONNECTION_TIMEOUT * 1000);
 
-    socket.on('data', (data) => {
+    socket.on('data', (req) => {
+        req = req.toString();
 
-        ///receiving data here
-        console.log(`Got request from connection ${socket.id}: `, data.toString());
+        // TODO: Should only handle one request at a time per connection
+
+        // TODO: For select queries, use all or each.
+        // For all others, use exec:
+
+        // Database#all(sql, [param, ...], [callback])
+        // Database#each(sql, [param, ...], [callback], [complete])
+        // Database#exec(sql, [callback])
+
+        //receiving req here
+        console.log(`Got request from connection ${socket.id}: `, req);
 
         //do something here
-
-        //send response here
-	    socket.write('Response from server: foo');
+        socket.db.all(req, (err, data) => {
+            if(err) {
+                socket.write(err);
+                return;
+            }
+            socket.write(JSON.stringify(data));
+        });
     });
 
     socket.on('timeout', () => {
