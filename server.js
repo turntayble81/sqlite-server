@@ -4,8 +4,10 @@ const uuid    = require('uuid');
 const config  = require('./config');
 
 let reqStr = '';
-const selectRe = /^\s*select/;
+const selectRe = /^\s*?select[^;]*?[\s;]*$/i;
+const dmlRe = /^\s*?(insert|update|replace|delete)[^;]*?[\s;]*$/i;
 const queryRe = /^.*?\0(.*)/;
+const nullByteRe = /\0$/;
 const server = net.createServer();
 
 server.maxConnections = config.MAX_CONNECTIONS;
@@ -32,27 +34,36 @@ server.on('connection', (socket) => {
         let matchResults = reqStr.match(queryRe);
         while(Array.isArray(matchResults) && matchResults.length == 2) {
             const startTime = Date.now();
-            let fn = 'all';
-            const req = matchResults[0];
+            let fn;
+            let req = matchResults[0].toLowerCase();
+            req = req.replace(nullByteRe, '');
+
             reqStr = matchResults[1];
 
-            if(!selectRe.test(req.toLowerCase())) {
+            console.log(req);
+            if(selectRe.test(req)) {
+                fn = 'all';
+            }else if(dmlRe.test(req)) {
+                fn = 'run';
+            }else {
                 fn = 'exec';
             }
-
+            console.log(fn);
             //receiving req here
             console.log(`Got request from connection ${socket.id}`);
 
             //do something here
-            socket.db[fn](req, (err, data) => {
+            socket.db[fn](req, function(err, data) {
                 console.log(`Request complete for connection ${socket.id} in ${Date.now() - startTime}ms`);
                 if(err) {
                     console.error(err);
-                    socket.write(JSON.stringify(err.toString({error: err.toString()})));
+                    socket.write(JSON.stringify({error: err.toString()}));
                     return;
                 }
                 if(fn == 'all') {
                     socket.write(JSON.stringify(data));
+                }else if(fn == 'run') {
+                    socket.write(JSON.stringify({ lastId: this.lastID, changes: this.changes }));
                 }else {
                     socket.write('{}');
                 }
