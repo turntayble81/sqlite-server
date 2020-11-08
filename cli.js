@@ -8,8 +8,8 @@ const rl = readline.createInterface({
 const client = new net.Socket();
 
 client.connect(9128, '127.0.0.1');
-client.setKeepAlive(true, 30000);
-client.setTimeout(30000);
+client.setKeepAlive(true, 900000);
+client.setTimeout(900000);
 
 function processCommand(req) {
 	req = req.trim();

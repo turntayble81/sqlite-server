@@ -6,16 +6,24 @@ const config  = require('./config');
 class SqliteServer {
 
     // TODO: pass config vars to constructor
-    constructor() {
-        this.server = net.createServer();
-        this.reqStr = '';
+    constructor({
+        connectionTimeout = 30,
+        maxConnections    = 2,
+        port              = 9128,
+        databaseFile      = './main.db'
+    }={}) {
+        this.connectionTimeout = connectionTimeout;
+        this.maxConnections    = maxConnections;
+        this.port              = port;
+        this.databaseFile      = databaseFile;
+        this.server            = net.createServer();
+        this.reqStr            = '';
 
-
-        this.server.maxConnections = config.MAX_CONNECTIONS;
-        this.server.listen(config.PORT, '127.0.0.1');
+        this.server.maxConnections = this.maxConnections;
+        this.server.listen(this.port, '127.0.0.1');
 
         this.server.on('listening', () => {
-            console.log(`Server listening on port ${config.PORT}`);
+            console.log(`Server listening on port ${this.port}`);
         });
 
         this.server.on('connection', (socket) => {this.newConnection(socket)});
@@ -24,7 +32,7 @@ class SqliteServer {
     newConnection(socket) {
         this.socket = socket;
 
-        const db = new sqlite3.Database(config.DATABASE_FILE);
+        const db = new sqlite3.Database(this.databaseFile);
         this.socket.db = db;
         this.socket.id = uuid.v4();
 
@@ -32,10 +40,10 @@ class SqliteServer {
         this.logConnectionCount();
 
         //Close connections which broke on the client side
-        this.socket.setKeepAlive(true, config.CONNECTION_TIMEOUT * 1000);
+        this.socket.setKeepAlive(true, this.connectionTimeout * 1000);
 
         //Close idle connections
-        this.socket.setTimeout(config.CONNECTION_TIMEOUT * 1000);
+        this.socket.setTimeout(this.connectionTimeout * 1000);
 
         this.socket.on('data', (req) => {
             req = req.toString();
@@ -75,7 +83,7 @@ class SqliteServer {
 
             console.log(req);
             if(SqliteServer.selectRe.test(req)) {
-                fn = 'all';
+                fn = 'each';
             }else if(SqliteServer.dmlRe.test(req)) {
                 fn = 'run';
             }else {
@@ -87,19 +95,28 @@ class SqliteServer {
 
             //do something here
             this.socket.db[fn](req, function(err, data) {
-                console.log(`Request complete for connection ${_this.socket.id} in ${Date.now() - startTime}ms`);
+                console.dir(data)
                 if(err) {
                     console.error(err);
                     _this.socket.write(JSON.stringify({error: err.toString()}));
                     return;
                 }
-                if(fn == 'all') {
+                if(fn == 'each') {
                     _this.socket.write(JSON.stringify(data));
                 }else if(fn == 'run') {
+                    console.log(`Request complete for connection ${_this.socket.id} in ${Date.now() - startTime}ms`);
                     _this.socket.write(JSON.stringify({ lastId: this.lastID, changes: this.changes }));
                 }else {
+                    console.log(`Request complete for connection ${_this.socket.id} in ${Date.now() - startTime}ms`);
                     _this.socket.write('{}');
                 }
+            }, (err, resultCount) => {
+                if(err) {
+                    console.error(err);
+                    _this.socket.write(JSON.stringify({error: err.toString()}));
+                    return;
+                }
+                console.log(`Query request complete for connection ${_this.socket.id} in ${Date.now() - startTime}ms. Records returned: ${resultCount}`);
             });
             matchResults = this.reqStr.match(SqliteServer.queryRe);
         }
@@ -117,4 +134,9 @@ SqliteServer.dmlRe = /^\s*?(insert|update|replace|delete)[^;]*?[\s;]*$/i;
 SqliteServer.queryRe = /^.*?\0(.*)/;
 SqliteServer.nullByteRe = /\0$/;
 
-new SqliteServer();
+new SqliteServer({
+    connectionTimeout : config.CONNECTION_TIMEOUT,
+    maxConnections    : config.MAX_CONNECTIONS,
+    port              : config.PORT,
+    databaseFile      : config.DATABASE_FILE
+});
