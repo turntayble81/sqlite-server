@@ -2,8 +2,6 @@ const sqlite3 = require('sqlite3');
 const uuid    = require('uuid');
 const config  = require('./config');
 
-// TODO: when closing, reject any future requests, and shut down once query queue is drained
-
 class Connection {
 
     constructor({socket, onClose=()=>{}}={}) {
@@ -25,6 +23,11 @@ class Connection {
         this._socket.setTimeout(config.CONNECTION_TIMEOUT * 1000);
 
         this._socket.on('data', (data) => {
+            if(this._state != 'open') {
+                // TODO: write data to socket notifying other party that
+                // connection is not accepting any new requests
+                return;
+            }
             this._reqDataBuf += data.toString();
 
             // If the request data buffer contains null bytes, pop queries out
@@ -59,7 +62,7 @@ class Connection {
     }
 
     close(graceful=true) {
-        if(graceful && this._state == 'processing') {
+        if(graceful && this._queryQueue.length) {
             console.log(`Conn ${this.id}: Initiating graceful shutdown`);
             this._state = 'closing';
             return;
@@ -77,22 +80,21 @@ class Connection {
     }
 
     _processQueryQueue() {
-        // if connection is closing, close now and return 
-        // prior to processing any additional requests
-        if(this._state == 'closing') {
-            this.close(false);
-            return;
-        }
 
         // pop next request off query queue. Return if
         // no more requests to process
         let query = this._queryQueue.splice(0, 1);
+
+        // If query queue is empty:
         if(!query.length == 1) {
+            // if connection is closing, close connection now
+            if(this._state == 'closing') {
+                this.close(false);
+            }
             return;
         }
 
         // start processing request
-        this._state == 'processing';
         query = query[0];
         const _this = this;
         const startTime = Date.now();
