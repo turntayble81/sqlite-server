@@ -54,7 +54,7 @@ class SqliteServer {
         delete this._connections[conn.id];
         const connCount = this.getConnectionCount();
         console.log(`Active connections: ${connCount}`);
-        if(this._state = 'shutting down' && connCount == 0) {
+        if(this._state == 'shutting down' && connCount == 0) {
             process.exit();
         }
     }

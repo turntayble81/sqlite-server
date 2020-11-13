@@ -24,8 +24,10 @@ class Connection {
 
         this._socket.on('data', (data) => {
             if(this._state != 'open') {
-                // TODO: write data to socket notifying other party that
-                // connection is not accepting any new requests
+                // Write negative acknowledgement byte to socket notifying
+                // other party that connection is draining and not accepting
+                // new requests
+                _this._write('\u0015');
                 return;
             }
             this._reqDataBuf += data.toString();

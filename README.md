@@ -4,26 +4,36 @@ Sqlite is capable of handling more load than you'd think. This application creat
 I'm just getting started on this project. More features to come.
 
 ### Response Format
-Server responses are sent in a delimited format. Response structure:
-
+Server responses are sent in a delimited format:
 ```
-Record transmission structure:
-    SOH	01	start of header
-        <header row>
+SOH	01	start of header
+    <header row>
 
-    STX	02	start of text
-        <record row>
-        ...
-    EOT	04	end of transmission
+STX	02	start of text
+    <record row 1>
+    <record row 2>
+    <record row n>
+EOT	04	end of transmission
+```
 
 Binary columns should be wrapped in the following characters:
-    STX	02	start of text
-    <binary data>
-    ETX	03	end of text
+```
+STX	02	start of text
+<binary data>
+ETX	03	end of text
+```
 
 Column delimiter:
-    NUL	00	null character
+```
+NUL	00	null character
+```
 
 Row delimiter:
-    LF	10	line feed
+```
+LF	10	line feed
+```
+
+If server is actively draining the connection, it will return a negative acknowledgement for any requests until the connection is closed:
+```
+NAK	21	negative acknowledgement
 ```
