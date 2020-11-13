@@ -2,6 +2,8 @@ const sqlite3 = require('sqlite3');
 const uuid    = require('uuid');
 const config  = require('./config');
 
+// TODO: when closing, reject any future requests, and shut down once query queue is drained
+
 class Connection {
 
     constructor({socket, onClose=()=>{}}={}) {
@@ -42,34 +44,55 @@ class Connection {
 
         this._socket.on('error', (err) => {
             console.error(`Conn ${this.id}: Socket error: ${err}`);
-            this._closeConnection();
+            this.close(false);
         });
 
         this._socket.on('timeout', () => {
             console.log(`Conn ${this.id}: Connection timed out.`);
-            this._closeConnection();
+            this.close(false);
         });
 
         this._socket.on('end', (data) => {
             console.log(`Conn ${this.id}: Connection closed.`);
-            this._closeConnection();
+            this.close(false);
         });
     }
 
-    _closeConnection() {
+    close(graceful=true) {
+        if(graceful && this._state == 'processing') {
+            console.log(`Conn ${this.id}: Initiating graceful shutdown`);
+            this._state = 'closing';
+            return;
+        }
         this._db.close();
         this._socket.destroy();
         this._state = 'closed';
         this._onClose(this);
     }
 
-    _processQueryQueue() {
+    _write(data) {
+        if(this._state == 'open') {
+            this._socket.write(data);
+        }
+    }
 
+    _processQueryQueue() {
+        // if connection is closing, close now and return 
+        // prior to processing any additional requests
+        if(this._state == 'closing') {
+            this.close(false);
+            return;
+        }
+
+        // pop next request off query queue. Return if
+        // no more requests to process
         let query = this._queryQueue.splice(0, 1);
         if(!query.length == 1) {
             return;
         }
 
+        // start processing request
+        this._state == 'processing';
         query = query[0];
         const _this = this;
         const startTime = Date.now();
@@ -89,6 +112,7 @@ class Connection {
             if(err) {
                 console.error(`Conn ${_this.id}: Got an error from db: ${err}`);
                 _this._write(JSON.stringify({error: err.toString()}));
+                this._state == 'open';
                 _this._processQueryQueue();
                 return;
             }
@@ -105,6 +129,7 @@ class Connection {
                 }else {
                     _this._write('{}');
                 }
+                this._state == 'open';
                 _this._processQueryQueue();
             }
         }
@@ -113,11 +138,13 @@ class Connection {
             if(err) {
                 console.error(`Conn ${_this.id}: Got an error from db: ${err}`);
                 _this._write(JSON.stringify({error: err.toString()}));
+                this._state == 'open';
                 _this._processQueryQueue();
                 return;
             }
             const elapsedTime = Date.now() - startTime;
             console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms. Records returned: ${resultCount}`);
+            this._state == 'open';
             _this._processQueryQueue();
         }
 
@@ -127,12 +154,6 @@ class Connection {
             this._db[fn](query, queryHandler);
         }
 
-    }
-
-    _write(data) {
-        if(this._state == 'open') {
-            this._socket.write(data);
-        }
     }
 }
 
