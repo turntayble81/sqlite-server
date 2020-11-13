@@ -1,6 +1,5 @@
 const sqlite3 = require('sqlite3');
 const uuid    = require('uuid');
-const { __esModule } = require('uuid/dist/v1');
 const config  = require('./config');
 
 class Connection {
