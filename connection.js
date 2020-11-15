@@ -1,6 +1,7 @@
-const sqlite3 = require('sqlite3');
-const uuid    = require('uuid');
-const config  = require('./config');
+const sqlite3       = require('sqlite3');
+const uuid          = require('uuid');
+const config        = require('./config');
+const { Serialize } = require('./serde');
 
 class Connection {
 
@@ -27,7 +28,12 @@ class Connection {
                 // Write negative acknowledgement byte to socket notifying
                 // other party that connection is draining and not accepting
                 // new requests
-                _this._write('\u0015');
+
+                const serializer = new Serialize();
+                serializer.begin();
+                serializer.draining();
+                serializer.end();
+                _this._write(serializer.serialize());
                 return;
             }
             this._reqDataBuf += data.toString();
@@ -111,12 +117,18 @@ class Connection {
         }
 
         console.log(`Conn ${this.id}: Processing query`);
+        const serializer = new Serialize();
+        serializer.begin();
 
         function queryHandler(err, data) {
             if(err) {
                 console.error(`Conn ${_this.id}: Got an error from db: ${err}`);
-                _this._write(JSON.stringify({error: err.toString()}));
-                this._state == 'open';
+
+                serializer.error(err.toString());
+                serializer.end();
+                _this._write(serializer.serialize());
+
+                _this._state == 'open';
                 _this._processQueryQueue();
                 return;
             }
@@ -129,11 +141,16 @@ class Connection {
                 console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms`);
 
                 if(fn == 'run') {
-                    _this._write(JSON.stringify({ lastId: this.lastID, changes: this.changes }));
+                    serializer.bodyRow({ lastId: this.lastID, changes: this.changes });
+                    serializer.closeBody();
+                    serializer.end();
+                    _this._write(serializer.serialize());
                 }else {
-                    _this._write('{}');
+                    serializer.ack();
+                    serializer.end();
+                    _this._write(serializer.serialize());
                 }
-                this._state == 'open';
+                _this._state == 'open';
                 _this._processQueryQueue();
             }
         }
@@ -141,14 +158,17 @@ class Connection {
         function doneHandler(err, resultCount) {
             if(err) {
                 console.error(`Conn ${_this.id}: Got an error from db: ${err}`);
-                _this._write(JSON.stringify({error: err.toString()}));
-                this._state == 'open';
+                serializer.error(err.toString());
+                serializer.end();
+
+                _this._write(serializer.serialize());
+                _this._state == 'open';
                 _this._processQueryQueue();
                 return;
             }
             const elapsedTime = Date.now() - startTime;
             console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms. Records returned: ${resultCount}`);
-            this._state == 'open';
+            _this._state == 'open';
             _this._processQueryQueue();
         }
 
@@ -163,7 +183,7 @@ class Connection {
 
 Connection.selectRe = /^\s*?select[^;]*?[\s;]*$/i;
 Connection.dmlRe = /^\s*?(insert|update|replace|delete)[^;]*?[\s;]*$/i;
-Connection.queryRe = /^.*?\0(.*)/;
-Connection.nullByteRe = /\0$/;
+Connection.queryRe = /^.*?\u0000(.*)/;
+Connection.nullByteRe = /\u0000$/;
 
 module.exports = Connection;

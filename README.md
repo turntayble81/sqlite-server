@@ -7,33 +7,46 @@ I'm just getting started on this project. More features to come.
 Server responses are sent in a delimited format:
 ```
 SOH	01	start of header
-    <header row>
-
-STX	02	start of text
-    <record row 1>
-    <record row 2>
-    <record row n>
+    SOH	01	start of header
+        <header row>
+    STX	02	start of text
+        <record row 1>
+        <record row 2>
+        <record row n>
+    ETX	03	end of text
 EOT	04	end of transmission
 ```
 
-Binary columns should be wrapped in the following characters:
+Column delimiter (3 bytes):
 ```
-STX	02	start of text
-<binary data>
-ETX	03	end of text
-```
-
-Column delimiter:
-```
+NUL	00	null character
+RS	30	record separator
 NUL	00	null character
 ```
 
-Row delimiter:
+Row delimiter (3 bytes):
 ```
-LF	10	line feed
+NUL	00	null character
+US	31	unit separator
+NUL	00	null character
 ```
+
+Queries which do not return a result simply return an acknowledgement:
+SOH	01	start of header
+    ACK	6	acknowledgement
+EOT	04	end of transmission
 
 If server is actively draining the connection, it will return a negative acknowledgement for any requests until the connection is closed:
 ```
-NAK	21	negative acknowledgement
+SOH	01	start of header
+    NAK	21	negative acknowledgement
+EOT	04	end of transmission
+```
+
+If an error is returned from the server, it will be text wrapped in the following characters:
+```
+SOH	01	start of header
+    BEL	7	bell
+        <error text>
+EOT	04	end of transmission
 ```

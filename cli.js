@@ -35,8 +35,8 @@ client.on('connect', () => {
 });
 
 client.on('data', function(data) {
-	data = JSON.parse(data);
-	console.dir(data);
+	// data = JSON.parse(data);
+	console.dir(data.toString());
 	prompt();
 });
 
