@@ -2,8 +2,7 @@ const net        = require('net');
 const config     = require('./config');
 const Connection = require('./connection');
 
-// TODO: Set up queue system to ensure each
-// connection only processes one request at a time
+// TODO: Transmit responses in chunks of a configured size
 
 // TODO: Move the config to a json file for easier external maintainance
 

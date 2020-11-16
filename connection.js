@@ -43,7 +43,7 @@ class Connection {
             let matchResults = this._reqDataBuf.match(Connection.queryRe);
 
             while(Array.isArray(matchResults) && matchResults.length == 2) {
-                let query = matchResults[0].toLowerCase();
+                let query = matchResults[0];
                 query = query.replace(Connection.nullByteRe, '');
                 this._queryQueue.push(query);
                 this._processQueryQueue();
@@ -133,9 +133,10 @@ class Connection {
                 return;
             }
 
-            // TODO: generate delimited data for all fn types
             if(fn == 'each') {
-                _this._write(JSON.stringify(data));
+                serializer.bodyRow(data);
+                _this._write(serializer.serialize());
+                serializer.clear();
             }else {
                 const elapsedTime = Date.now() - startTime;
                 console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms`);
@@ -168,6 +169,11 @@ class Connection {
             }
             const elapsedTime = Date.now() - startTime;
             console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms. Records returned: ${resultCount}`);
+
+            serializer.closeBody();
+            serializer.end();
+            _this._write(serializer.serialize());
+
             _this._state == 'open';
             _this._processQueryQueue();
         }
