@@ -97,7 +97,8 @@ class Deserialize {
     }
 
     parse(data, _result = []) {
-        if(data.byteLength) {
+
+        if(Buffer.isBuffer(data) && data.byteLength) {
             this._dataBuf = Buffer.concat([this._dataBuf, data]);
         }
 
@@ -107,22 +108,22 @@ class Deserialize {
 
         // is a record currently being processed?
         if(this._state == 'idle') {
-            if(this._dataBuf[0] == SOH) {
-                this._state == 'processing';
+            if(String.fromCharCode(this._dataBuf[0]) == SOH) {
+                this._state = 'processing';
                 this._dataBuf = this._dataBuf.slice(1);
-                this._process();
             }else {
                 throw 'Malformed data';
             }
         }
 
         if(!this._currentRecType) {
-            const recTypeByte = this._dataBuf[0];
+            const recTypeByte = String.fromCharCode(7);
+
             if(recTypeByte == SOH) {
                 this._currentRecType = 'Result';
-            }else if(recTypeByte == 'NAK') {
+            }else if(recTypeByte == NAK) {
                 this._currentRecType = 'Draining';
-            }else if(recTypeByte == 'BEL') {
+            }else if(recTypeByte == BEL) {
                 this._currentRecType = 'Error';
             }else {
                 throw 'Invalid record type';
@@ -130,15 +131,18 @@ class Deserialize {
             this._dataBuf = this._dataBuf.slice(1);
         }
 
+        if(!this._dataBuf.byteLength) {
+            return;
+        }
+
         const result = this[`_process${this._currentRecType}`]();
         if(result) {
             _result.push(result);
-
             if(this._dataBuf.byteLength > 0) {
                 this.parse(null, _result);
             }
         }
-        return this._result;
+        return _result;
     }
 
     _processResult() {
@@ -155,11 +159,25 @@ class Deserialize {
         }else {
             throw 'Malformed data for draining record';
         }
+        this._state = 'idle';
+        this._currentRecType = '';
         return result;
     }
 
     _processError() {
+        const eotIdx = this._dataBuf.indexOf(EOT);
+        if(eotIdx == -1) {
+            return;
+        }
 
+        const result = {
+            _type : 'error',
+            mesg  : this._dataBuf.slice(0, eotIdx).toString()
+        }
+        this._dataBuf = this._dataBuf.slice(eotIdx+1);
+        this._state = 'idle';
+        this._currentRecType = '';
+        return result;
     }
 }
 

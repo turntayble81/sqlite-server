@@ -1,5 +1,8 @@
 const net = require('net');
 const readline = require("readline");
+const { Deserialize } = require('./serde');
+
+const deserializer = new Deserialize();
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -36,7 +39,8 @@ client.on('connect', () => {
 
 client.on('data', function(data) {
 	// data = JSON.parse(data);
-	console.dir(data.toString());
+	data = deserializer.parse(data)
+	console.dir(data);
 	prompt();
 });
 
