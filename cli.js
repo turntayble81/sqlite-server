@@ -39,8 +39,7 @@ client.on('connect', () => {
 
 client.on('data', function(data) {
 	data = deserializer.parse(data)
-	console.log('#', data.length)
-	data.forEach((res) => console.dir(res), {depth: null});
+	data.forEach((res) => console.dir(res, {depth: null}));
 	prompt();
 });
 

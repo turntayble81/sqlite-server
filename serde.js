@@ -134,7 +134,12 @@ class Deserialize {
 
         const result = this[`_process${this._currentRecType}`]();
         if(result) {
-            _result.push(result);
+            if(Array.isArray(result)) {
+                _result = _result.concat(result);
+            }else {
+                _result.push(result);
+            }
+
             if(this._dataBuf.byteLength > 0) {
                 this.parse(null, _result);
             }
@@ -162,9 +167,11 @@ class Deserialize {
             if(!this._headerRow) {
                 this._headerRow = row;
             }else {
+                const rowObj = {};
+                this._headerRow.forEach((col, idx) => { rowObj[col] = row[idx]})
                 result.push({
                     _type : 'resultRow',
-                    mesg  : this._headerRow.map((col, idx) => ({ [col]: row[idx]}))
+                    mesg  : rowObj
                 });
             }
 
