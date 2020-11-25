@@ -9,11 +9,9 @@ Server responses are sent in a delimited format:
 SOH	01	start of header
     SOH	01	start of header
         <header row>
-    STX	02	start of text
         <record row 1>
         <record row 2>
         <record row n>
-    ETX	03	end of text
 EOT	04	end of transmission
 ```
 

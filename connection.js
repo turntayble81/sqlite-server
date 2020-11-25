@@ -143,7 +143,6 @@ class Connection {
 
                 if(fn == 'run') {
                     serializer.bodyRow({ lastId: this.lastID, changes: this.changes });
-                    serializer.closeBody();
                     serializer.end();
                     _this._write(serializer.serialize());
                 }else {
@@ -170,7 +169,6 @@ class Connection {
             const elapsedTime = Date.now() - startTime;
             console.log(`Conn ${_this.id}: Request complete in ${elapsedTime}ms. Records returned: ${resultCount}`);
 
-            serializer.closeBody();
             serializer.end();
             _this._write(serializer.serialize());
 

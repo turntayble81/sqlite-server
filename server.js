@@ -4,6 +4,9 @@ const Connection = require('./connection');
 
 // TODO: Transmit responses in chunks of a configured size
 
+// TODO: Requests received by server should send an ack byte along with uuid representing request
+         // Responses should contain uuid representing the request they're for
+
 // TODO: Move the config to a json file for easier external maintainance
 
 // TODO: Add support for data compression

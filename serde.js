@@ -1,7 +1,5 @@
 const NUL = '\u0000';
 const SOH = '\u0001';
-const STX = '\u0002';
-const ETX = '\u0003';
 const EOT = '\u0004';
 const ACK = '\u0006';
 const BEL = '\u0007';
@@ -31,6 +29,7 @@ class Serialize {
     headerRow(row) {
         this.result += SOH;
         this.result += Object.keys(row).join(COL_SEPARATOR);
+        this.result += ROW_SEPARATOR;
         this.headerRowWritten = true;
     }
 
@@ -39,14 +38,8 @@ class Serialize {
 
         if(!this.headerRowWritten) {
             this.headerRow(row);
-            this.result += `${STX}${rowData}`;
-        }else {
-            this.result += `${ROW_SEPARATOR}${rowData}`;
         }
-    }
-
-    closeBody() {
-        this.result += ETX;
+        this.result += `${rowData}${ROW_SEPARATOR}`;
     }
 
     ack() {
@@ -91,9 +84,14 @@ class Serialize {
 
 class Deserialize {
     constructor(recordHandler) {
+        this.init();
+        this._dataBuf = Buffer.from([]);
+    }
+
+    init() {
         this._state = 'idle';
         this._currentRecType = '';
-        this._dataBuf = Buffer.from([]);
+        this._headerRow = false;
     }
 
     parse(data, _result = []) {
@@ -117,8 +115,7 @@ class Deserialize {
         }
 
         if(!this._currentRecType) {
-            const recTypeByte = String.fromCharCode(7);
-
+            const recTypeByte = String.fromCharCode(this._dataBuf[0]);
             if(recTypeByte == SOH) {
                 this._currentRecType = 'Result';
             }else if(recTypeByte == NAK) {
@@ -146,7 +143,39 @@ class Deserialize {
     }
 
     _processResult() {
+        const result = [];
+        let data;
+        let eolIdx;
+        let eotIdx = this._dataBuf.indexOf(EOT);
 
+        if(eotIdx != -1) {
+            data = this._dataBuf.slice(0, eotIdx+1);
+            this._dataBuf = this._dataBuf.slice(eotIdx+1);
+        }else {
+            data = this._dataBuf.slice(0);
+            this._dataBuf = Buffer.from([]);
+        }
+        
+        eolIdx = data.indexOf(ROW_SEPARATOR);
+        while(eolIdx != -1) {
+            const row = data.slice(0, eolIdx).toString().split(COL_SEPARATOR)
+            if(!this._headerRow) {
+                this._headerRow = row;
+            }else {
+                result.push({
+                    _type : 'resultRow',
+                    mesg  : this._headerRow.map((col, idx) => ({ [col]: row[idx]}))
+                });
+            }
+
+            data = data.slice(eolIdx+ROW_SEPARATOR.length);
+            eolIdx = data.indexOf(ROW_SEPARATOR);
+        }
+
+        if(data.indexOf(EOT) === 0) {
+            this.init();
+        }
+        return result.length ? result : null;
     }
 
     _processDraining() {
@@ -159,8 +188,7 @@ class Deserialize {
         }else {
             throw 'Malformed data for draining record';
         }
-        this._state = 'idle';
-        this._currentRecType = '';
+        this.init();
         return result;
     }
 
@@ -175,8 +203,7 @@ class Deserialize {
             mesg  : this._dataBuf.slice(0, eotIdx).toString()
         }
         this._dataBuf = this._dataBuf.slice(eotIdx+1);
-        this._state = 'idle';
-        this._currentRecType = '';
+        this.init();
         return result;
     }
 }
