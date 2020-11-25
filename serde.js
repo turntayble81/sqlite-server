@@ -137,6 +137,8 @@ class Deserialize {
             const recTypeByte = String.fromCharCode(this._dataBuf[0]);
             if(recTypeByte == SOH) {
                 this._currentRecType = 'Result';
+            }else if(recTypeByte == ACK) {
+                this._currentRecType = 'Queued';
             }else if(recTypeByte == NAK) {
                 this._currentRecType = 'Draining';
             }else if(recTypeByte == BEL) {
@@ -163,7 +165,7 @@ class Deserialize {
                 this.parse(null, _result);
             }
         }
-        return _result;
+        return _result;s
     }
 
     _processResult() {
@@ -205,9 +207,28 @@ class Deserialize {
         return result.length ? result : null;
     }
 
+    _processQueued() {
+        let result;
+        const eotIdx = this._dataBuf.indexOf(EOT);
+
+        if(eotIdx === 0) {
+            result = {
+                _type : 'queued',
+                _id   : this._queryId
+            };
+            this._dataBuf = this._dataBuf.slice(1);
+        }else {
+            throw 'Malformed data for queued record';
+        }
+        this.init();
+        return result;
+    }
+
     _processDraining() {
         let result;
-        if(this._dataBuf[0] == EOT) {
+        const eotIdx = this._dataBuf.indexOf(EOT);
+
+        if(eotIdx === 0) {
             result = {
                 _type: 'draining'
             };
@@ -222,7 +243,7 @@ class Deserialize {
     _processError() {
         const eotIdx = this._dataBuf.indexOf(EOT);
         if(eotIdx == -1) {
-            return;
+            throw 'Malformed data for error record';
         }
 
         const result = {

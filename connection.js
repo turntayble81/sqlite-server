@@ -33,7 +33,7 @@ class Connection {
                 serializer.begin();
                 serializer.draining();
                 serializer.end();
-                _this._write(serializer.serialize());
+                this._write(serializer.serialize());
                 return;
             }
             this._reqDataBuf += data.toString();
@@ -44,13 +44,21 @@ class Connection {
 
             while(Array.isArray(matchResults) && matchResults.length == 2) {
                 let query = matchResults[0];
+                const queryId = uuid.v4().replace(Connection.uuidRe, '');
+
                 query = query.replace(Connection.nullByteRe, '');
                 this._queryQueue.push({
                     query,
-                    id: uuid.v4().replace(Connection.uuidRe, '')
+                    id: queryId
                 });
 
                 // TODO: Send back acknowledgement containing uuid assigned to query
+                const serializer = new Serialize(queryId);
+                serializer.begin();
+                serializer.ack();
+                serializer.end();
+                this._write(serializer.serialize());
+
                 this._processQueryQueue();
 
                 this._reqDataBuf = matchResults[1];
