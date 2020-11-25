@@ -3,6 +3,7 @@ const SOH = '\u0001';
 const EOT = '\u0004';
 const ACK = '\u0006';
 const BEL = '\u0007';
+const DC1 = '\u0011';
 const NAK = '\u0015';
 const RS  = '\u001e';
 const US  = '\u001f';
@@ -12,18 +13,24 @@ const ROW_SEPARATOR = `${NUL}${US}${NUL}`;
 
 
 class Serialize {
-    constructor() {
+    constructor(queryId) {
+        this.queryId = queryId;
         this.result = '';
         this.headerRowWritten = false;
     }
 
     begin() {
         this.clear();
-        this.result = SOH;
+        this.result += SOH;
+        this.queryIdHeader();
     }
 
     end() {
         this.result += EOT;
+    }
+
+    queryIdHeader() {
+        this.result += `${DC1}${this.queryId}${DC1}`;
     }
 
     headerRow(row) {
@@ -90,6 +97,7 @@ class Deserialize {
 
     init() {
         this._state = 'idle';
+        this._queryId = '';
         this._currentRecType = '';
         this._headerRow = false;
     }
@@ -111,6 +119,17 @@ class Deserialize {
                 this._dataBuf = this._dataBuf.slice(1);
             }else {
                 throw 'Malformed data';
+            }
+        }
+
+        if(!this._queryId) {
+            const queryIdStart = this._dataBuf.indexOf(DC1);
+            const queryIdEnd = this._dataBuf.indexOf(DC1, 1);
+            if(queryIdStart === 0 && queryIdEnd > 0) {
+                this._queryId = this._dataBuf.slice(1, queryIdEnd).toString();
+                this._dataBuf = this._dataBuf.slice(queryIdEnd+1);
+            }else {
+                throw 'Invalid query id data';
             }
         }
 
@@ -170,7 +189,8 @@ class Deserialize {
                 const rowObj = {};
                 this._headerRow.forEach((col, idx) => { rowObj[col] = row[idx]})
                 result.push({
-                    _type : 'resultRow',
+                    _type : 'row',
+                    _id   : this._queryId,
                     mesg  : rowObj
                 });
             }
@@ -207,6 +227,7 @@ class Deserialize {
 
         const result = {
             _type : 'error',
+            _id   : this._queryId,
             mesg  : this._dataBuf.slice(0, eotIdx).toString()
         }
         this._dataBuf = this._dataBuf.slice(eotIdx+1);

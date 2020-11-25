@@ -7,7 +7,7 @@ class Connection {
 
     constructor({socket, onClose=()=>{}}={}) {
 
-        this.id          = uuid.v4();
+        this.id          = uuid.v4().replace(Connection.uuidRe, '');
         this._onClose    = onClose;
         this._db         = new sqlite3.Database(config.DATABASE_FILE);
         this._socket     = socket;
@@ -45,7 +45,12 @@ class Connection {
             while(Array.isArray(matchResults) && matchResults.length == 2) {
                 let query = matchResults[0];
                 query = query.replace(Connection.nullByteRe, '');
-                this._queryQueue.push(query);
+                this._queryQueue.push({
+                    query,
+                    id: uuid.v4().replace(Connection.uuidRe, '')
+                });
+
+                // TODO: Send back acknowledgement containing uuid assigned to query
                 this._processQueryQueue();
 
                 this._reqDataBuf = matchResults[1];
@@ -103,7 +108,9 @@ class Connection {
         }
 
         // start processing request
-        query = query[0];
+        let queryId = query[0].id;
+        query = query[0].query;
+
         const _this = this;
         const startTime = Date.now();
         let fn;
@@ -116,8 +123,8 @@ class Connection {
             fn = 'exec';
         }
 
-        console.log(`Conn ${this.id}: Processing query`);
-        const serializer = new Serialize();
+        console.log(`Conn ${this.id}: Processing query ${queryId}`);
+        const serializer = new Serialize(queryId);
         serializer.begin();
 
         function queryHandler(err, data) {
@@ -189,5 +196,6 @@ Connection.selectRe = /^\s*?select[^;]*?[\s;]*$/i;
 Connection.dmlRe = /^\s*?(insert|update|replace|delete)[^;]*?[\s;]*$/i;
 Connection.queryRe = /^.*?\u0000(.*)/;
 Connection.nullByteRe = /\u0000$/;
+Connection.uuidRe = /-/g
 
 module.exports = Connection;

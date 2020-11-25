@@ -7,6 +7,9 @@ I'm just getting started on this project. More features to come.
 Server responses are sent in a delimited format:
 ```
 SOH	01	start of header
+    DC1 11 device control 1
+        <request id>
+    DC1 11 device control 1
     SOH	01	start of header
         <header row>
         <record row 1>
@@ -44,6 +47,9 @@ EOT	04	end of transmission
 If an error is returned from the server, it will be text wrapped in the following characters:
 ```
 SOH	01	start of header
+    DC1 11 device control 1
+        <request id>
+    DC1 11 device control 1
     BEL	7	bell
         <error text>
 EOT	04	end of transmission
