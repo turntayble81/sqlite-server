@@ -12,7 +12,7 @@ class SqliteServer {
     constructor() {
         this.server       = net.createServer();
         this._connections = {};
-        this._state = 'running';
+        this._state       = 'running';
 
         this.server.maxConnections = config.MAX_CONNECTIONS;
         this.server.listen(config.PORT, '127.0.0.1');
