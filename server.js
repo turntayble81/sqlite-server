@@ -1,6 +1,6 @@
 const net        = require('net');
-const util       = require('./util');
-const Connection = require('./connection');
+const util       = require('./lib/util');
+const Connection = require('./lib/connection');
 
 const config = util.loadConfig();
 

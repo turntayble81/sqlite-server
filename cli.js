@@ -1,6 +1,6 @@
 const net = require('net');
-const readline = require("readline");
-const { Deserialize } = require('./serde');
+const readline = require('readline');
+const { Deserialize } = require('./lib/serde');
 
 const deserializer = new Deserialize();
 const rl = readline.createInterface({
