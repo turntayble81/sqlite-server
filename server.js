@@ -4,8 +4,8 @@ const Connection = require('./lib/connection');
 
 const config = util.loadConfig();
 
+// TODO: Add mocha and write tests
 // TODO: Add support for data compression
-// TODO: Add mocha, eslint and write tests
 
 class SqliteServer {
 
