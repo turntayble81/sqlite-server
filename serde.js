@@ -83,12 +83,6 @@ class Serialize {
     };
 }
 
-
-// record types:
-// result set
-// error
-// draining
-
 class Deserialize {
     constructor(recordHandler) {
         this.init();
@@ -202,6 +196,10 @@ class Deserialize {
         }
 
         if(data.indexOf(EOT) === 0) {
+            result.push({
+                _type : 'done',
+                _id   : this._queryId
+            });
             this.init();
         }
         return result.length ? result : null;

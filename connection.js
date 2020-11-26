@@ -1,7 +1,10 @@
 const sqlite3       = require('sqlite3');
 const uuid          = require('uuid');
-const config        = require('./config');
+const util          = require('./util');
 const { Serialize } = require('./serde');
+
+const config = util.loadConfig();
+
 
 class Connection {
 
@@ -52,7 +55,6 @@ class Connection {
                     id: queryId
                 });
 
-                // TODO: Send back acknowledgement containing uuid assigned to query
                 const serializer = new Serialize(queryId);
                 serializer.begin();
                 serializer.ack();
