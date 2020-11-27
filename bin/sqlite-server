@@ -32,12 +32,13 @@ MAX_MEM=` \
 cd $DIR;
 if [ "$CMD" == "start" ]; then
     echo "Starting server. Max memory: ${MAX_MEM}MB. Logs being written to $LOG_FILE";
+    npx forever stop 0 > /dev/null 2>&1;
     npx forever start -a \
         -l "$LOG_FILE" -o "$LOG_FILE" -e "$LOG_FILE" \
         --spinSleepTime 5000 --minUptime 1000 --killSignal=SIGTERM \
         --workingDir . -c "/usr/local/bin/node --max-heap-size=$MAX_MEM" lib/server.js >> $LOG_FILE;
 elif [ "$CMD" == "restart" ]; then
-    echo "Restarting server. Max memory: ${MAX_MEM}MB. Logs being written to $LOG_FILE";
+    echo "Restarting server.";
     npx forever restart 0  >> $LOG_FILE;
 else
     echo "Stopping server.";
