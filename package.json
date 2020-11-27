@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/turntayble81/sqlite-server#readme",
   "dependencies": {
+    "forever": "3.0.4",
     "sqlite3": "5.0.0",
     "uuid": "8.3.1"
   },

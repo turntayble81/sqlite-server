@@ -1,0 +1,45 @@
+#!/bin/bash
+
+###############################################################
+# This script is used to start server in background. Process
+# monitor is set up and memory limits configured
+###############################################################
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="$DIR/..";
+
+CMD=$1;
+
+if [ "$CMD" != "start" ] && [ "$CMD" != "restart" ] && [ "$CMD" != "stop" ]; then
+    echo "Invalid command. Sample usage:";
+    echo "sqlite-server start|stop|restart";
+    exit 1;
+fi
+
+# Read config vars
+MAX_MEM_PERCENTAGE=`jq -r '.MAX_MEM_PERCENTAGE' "$DIR/config.json"`;
+LOG_FILE="`jq -r '.LOG_FILE' "$DIR/config.json"`";
+
+# Default values
+MAX_MEM_PERCENTAGE=${MAX_MEM_PERCENTAGE:-80}
+LOG_FILE=${LOG_FILE:-"$DIR/server.log"}
+
+# Compute max memory from specified percentage
+MAX_MEM=` \
+    cat /proc/meminfo | grep MemTotal | \
+    awk -v mem_pct=$MAX_MEM_PERCENTAGE '{printf "%.0f", ($2 * (mem_pct / 100) / 1024)}'`;
+
+cd $DIR;
+if [ "$CMD" == "start" ]; then
+    echo "Starting server. Max memory: ${MAX_MEM}MB. Logs being written to $LOG_FILE";
+    npx forever start -a \
+        -l "$LOG_FILE" -o "$LOG_FILE" -e "$LOG_FILE" \
+        --spinSleepTime 5000 --minUptime 1000 --killSignal=SIGTERM \
+        --workingDir . -c "/usr/local/bin/node --max-heap-size=$MAX_MEM" lib/server.js >> $LOG_FILE;
+elif [ "$CMD" == "restart" ]; then
+    echo "Restarting server. Max memory: ${MAX_MEM}MB. Logs being written to $LOG_FILE";
+    npx forever restart 0  >> $LOG_FILE;
+else
+    echo "Stopping server.";
+    npx forever stop 0  >> $LOG_FILE;
+fi
