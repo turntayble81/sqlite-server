@@ -17,8 +17,8 @@ if [ "$CMD" != "start" ] && [ "$CMD" != "restart" ] && [ "$CMD" != "stop" ]; the
 fi
 
 # Read config vars
-MAX_MEM_PERCENTAGE=`jq -r '.MAX_MEM_PERCENTAGE' "$DIR/config.json"`;
-LOG_FILE="`jq -r '.LOG_FILE' "$DIR/config.json"`";
+MAX_MEM_PERCENTAGE=`jq -r '.MAX_MEM_PERCENTAGE' "$HOME/.sqlite-server.cnf"`;
+LOG_FILE="`jq -r '.LOG_FILE' "$HOME/.sqlite-server.cnf"`";
 
 # Default values
 MAX_MEM_PERCENTAGE=${MAX_MEM_PERCENTAGE:-80}
