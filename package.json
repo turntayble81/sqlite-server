@@ -4,8 +4,9 @@
   "description": "Client/Server Implementation for Sqlite",
   "main": "server.js",
   "scripts": {
-    "test": "mocha",
-    "start": "node server.js"
+    "test": "mocha --recursive test/",
+    "start": "./bin/sqlite-server",
+    "coverage": "nyc --reporter=html npm run test"
   },
   "repository": {
     "type": "git",
