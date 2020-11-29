@@ -10,6 +10,11 @@ DIR="$DIR/..";
 
 CMD=$1;
 
+function get_config_param {
+    param=$1;
+    cat "$HOME/.sqlite-server.cnf" | egrep "^\s*$param\s*=" | sed "s/^\s*$param\s*=\s*\(.*\)$/\1/";
+}
+
 if [ "$CMD" != "start" ] && [ "$CMD" != "restart" ] && [ "$CMD" != "stop" ]; then
     echo "Invalid command. Sample usage:";
     echo "sqlite-server start|stop|restart";
@@ -17,12 +22,12 @@ if [ "$CMD" != "start" ] && [ "$CMD" != "restart" ] && [ "$CMD" != "stop" ]; the
 fi
 
 # Read config vars
-MAX_MEM_PERCENTAGE=`jq -r '.MAX_MEM_PERCENTAGE' "$HOME/.sqlite-server.cnf"`;
-LOG_FILE="`jq -r '.LOG_FILE' "$HOME/.sqlite-server.cnf"`";
+MAX_MEM_PERCENTAGE=`get_config_param MAX_MEM_PERCENTAGE`;
+LOG_FILE=`get_config_param LOG_FILE`;
 
 # Default values
 MAX_MEM_PERCENTAGE=${MAX_MEM_PERCENTAGE:-80}
-LOG_FILE=${LOG_FILE:-"$DIR/server.log"}
+LOG_FILE=${LOG_FILE:-"$DIR/sqlite-server.log"}
 
 # Compute max memory from specified percentage
 MAX_MEM=` \
@@ -34,7 +39,7 @@ if [ "$CMD" == "start" ]; then
     echo "Starting server. Max memory: ${MAX_MEM}MB. Logs being written to $LOG_FILE";
     npx forever stop 0 > /dev/null 2>&1;
     npx forever start -a \
-        -l "$LOG_FILE" -o "$LOG_FILE" -e "$LOG_FILE" \
+        -o "$LOG_FILE" -e "$LOG_FILE" \
         --spinSleepTime 5000 --minUptime 1000 --killSignal=SIGTERM \
         --workingDir . -c "/usr/local/bin/node --max-heap-size=$MAX_MEM" lib/server.js >> $LOG_FILE;
 elif [ "$CMD" == "restart" ]; then

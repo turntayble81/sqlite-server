@@ -1,3 +1,11 @@
+/*
+    global
+    describe   : false,
+    beforeEach : false,
+    afterEach  : false,
+    it         : false
+*/
+
 const chai          = require('chai');
 const { Serialize } = require('../../lib/serde');
 const { expect }    = chai;

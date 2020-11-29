@@ -3,6 +3,9 @@ Sqlite is capable of handling more load than you'd think. This application creat
 
 I'm just getting started on this project. More features to come.
 
+### Configuration
+Copy `sqlite-server.cnf.tpl` to `~/.sqlite-server.cnf` and update values as needed.
+
 ### Response Format
 
 When the server receives a query, it immediately queues it for processing
@@ -16,7 +19,7 @@ SOH	01	start of header
     DC1 11 device control 1
     ACK	06	negative acknowledgement
 EOT	04	end of transmission
-
+```
 
 If server is actively draining the connection, it will return a negative acknowledgement for any requests until the connection is closed:
 ```
